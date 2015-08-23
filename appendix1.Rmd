@@ -1,0 +1,25 @@
+---
+title: "Appendix 1 - Pairs Chart"
+author: "Enrique El Gato"
+date: "Sunday, August 23, 2015"
+output: pdf_document
+---
+
+Below is a sample row from the dataset.
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+library(xtable,quietly=TRUE,warn.conflicts = FALSE)
+xt<-xtable(head(mtcars,1))
+print(xt,type = "latex",zero.print = ".",comment=FALSE)
+```
+
+The pairs chart below show that variables appear to be highly correlated with mpg. In particular, see the first column which pairs mpgs with the other variables in the dataset.
+
+
+```{r, fig.height=6, fig.width=10, echo = FALSE, warning=FALSE,results='hide'}
+require(datasets); data(mtcars); 
+library(GGally,quietly=TRUE,warn.conflicts = FALSE); 
+library(ggplot2,quietly=TRUE,warn.conflicts = FALSE)
+g = ggpairs(mtcars, lower = list(continuous = "smooth"),params = c(method = "loess"))
+g
+```

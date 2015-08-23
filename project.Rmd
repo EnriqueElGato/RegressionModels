@@ -1,0 +1,146 @@
+---
+title: "Regression Models Course Project"
+output: pdf_document
+---
+
+## Executive Summary
+
+Per the analysis below, the relationship between mpg and the available data is best catpured using a model that regresses weight and horse power against mpg. For a given horse power and weight, manual transmission have a higher mpg. The incremental effect of a manual transmission is approximatley 2.08 additional miles/gallon.
+
+## Synopsis
+This analysis will explore the relationships between 11 variables for 32 automobiles collected by Motor Trend magazine in 1974 and answer the following questions:
+
+* Is an automatic or manual transmission better for MPG?
+* What is the MPG difference between automatic and manual transmissions?
+
+## Loading and Reviewing Raw Data
+
+The dataset used is the mtcars dataframe in the R datasets package.
+
+```{r echo=FALSE}
+data(mtcars)
+```
+
+A description of the variables in this dataset can be found [here](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/mtcars.html).
+
+## Exploration
+
+A pairs comparison of the variables in the dataset can be found (here) [TODO]. Some variable appear highly correlated with mpg.
+
+## Model Selection
+
+### Initial Transmision Model
+
+A model must balances bias and variability in model estimates. Below is summary of a regression using only transmission. It captures a low percentage of the observered variation in mpg values. 
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+library(xtable,quietly=TRUE,warn.conflicts = FALSE)
+fit1 <- lm(mpg ~ factor(am) ,data=mtcars)
+s<-summary(fit1)
+f<-s$fstatistic
+d<-data.frame(Adj.R.Sqred=s$adj.r.squared,F.Stat=f[1],Resid.Std.Err=s$sigma)
+cF <-as.character(fit1$call$formula)
+cF <- c(cF[2],cF[1],cF[3:length(cF)])
+name <- paste(paste(cF[1],cF[2]),cF[3:length(cF)],collapse=" + ")
+dimnames(d)[[1]] <- name
+xt<-xtable(d,caption="Transmission Only Model Fit",digits = 4)
+print(xt,type = "latex",zero.print = ".",comment=FALSE)
+```
+
+### Selection Of Variables
+
+To selectively identify model variables, I with the variable with the highest correlations with mpg, weight. 
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE} 
+df <- data.frame(matrix(rep(mtcars[,1],10),ncol=10))
+names(df) <- names(mtcars[,2:11])
+tab <- mapply(cor,df,mtcars[,2:11])
+mpgCors <-matrix(tab,ncol=10)
+dimnames(mpgCors) <- list(c("mpg"),names(mtcars[,2:11]))
+
+wtCors <- with(mtcars,
+        matrix(c(cor(wt,cyl),cor(wt,disp),cor(wt,hp)),nrow=1)
+)
+dimnames(wtCors) <-list(c("wt"),c("cyl","disp","hp"))
+xt <- xtable(mpgCors,caption="Mpg Correlations")
+print(xt,type = "latex",zero.print = ".",comment=FALSE)
+```
+
+I then examined the next three hightest correlations and used  one with the smallest correltain with weight, horse power. 
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE} 
+xt <- xtable(wtCors,caption="Weight Correlations")
+print(xt,type = "latex",zero.print = ".",comment=FALSE)
+```
+
+### Analysis of Variance 
+
+To check if any additional variables should be added, an analysis was done to see the impact of adding one additional varible. None of the other variables had statistically significant p-values. Only mpg, weight and horse power will be used in the model to analyize transmission impact.
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
+fbind<-function(f,tab,doANOVA){
+        s<-summary(f)
+        fstat<-s$fstatistic
+        anova.PV <- NA
+        if(doANOVA & !is.null(lastFit)){
+                a <- anova(lastFit,f)
+                anova.PV <- a$"Pr(>F)"[2]
+        } 
+        d<-data.frame(Adj.R.Sqred=s$adj.r.squared,F.Stat=fstat[1],Resid.Std.Err=s$sigma,anova.P.Value=c(anova.PV))
+        cF <-as.character(f$call$formula)
+        cF <- c(cF[2],cF[1],cF[3:length(cF)])
+        name <- paste(paste(cF[1],cF[2]),cF[3:length(cF)],collapse=" + ")
+        dimnames(d)[[1]] <- name
+        if((!is.na(anova.PV) & anova.PV < 0.05) | (is.null(lastFit) & doANOVA) ){
+                lastFit <<- f
+        }  
+        if(is.null(tab)){
+                d        
+        }else{
+                rbind(tab,d)
+        }
+
+}
+f0 <- lm(mpg ~ .,data=mtcars)
+f1 <- lm(mpg ~ wt,data=mtcars)
+f2 <- lm(mpg ~ wt + hp,data=mtcars)
+f3 <- lm(mpg ~ wt + hp + factor(am),data=mtcars)
+f4 <- lm(mpg ~ wt + hp + factor(cyl),data=mtcars)
+f5 <- lm(mpg ~ wt + hp + drat,data=mtcars)
+f6 <- lm(mpg ~ wt + hp + qsec,data=mtcars)
+f7 <- lm(mpg ~ wt + hp + factor(vs),data=mtcars)
+f8 <- lm(mpg ~ wt + hp + factor(gear),data=mtcars)
+f9 <- lm(mpg ~ wt + hp + factor(carb),data=mtcars)
+f10 <- lm(mpg ~ wt + hp + disp,data=mtcars)
+lastFit <- NULL
+tab<-fbind(f0,NULL,FALSE)
+tab<-fbind(f1,tab,TRUE)
+tab<-fbind(f2,tab,TRUE)
+tab<-fbind(f3,tab,TRUE)
+tab<-fbind(f4,tab,TRUE)
+tab<-fbind(f5,tab,TRUE)
+tab<-fbind(f6,tab,TRUE)
+tab<-fbind(f7,tab,TRUE)
+tab<-fbind(f8,tab,TRUE)
+tab<-fbind(f9,tab,TRUE)
+tab<-fbind(f10,tab,TRUE)
+```
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+xt<-xtable(tab,digits = 4)
+print(xt,type = "latex",zero.print = ".",comment=FALSE)
+```
+
+##Analysis Of Transmission
+
+For the transmission variable, a value of 0 means automatic and 1 means manual. The intercept captures the mpg for automatic transmission. The factor(am)1 coefficient captures manual transmission marginal impact.See the Executive Summary for remaining analysis.
+
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+f3 <- lm(mpg ~ wt + hp + factor(am),data=mtcars)
+s<-summary(f3)
+xt<-xtable(s,digits = 4)
+print(xt,type = "latex",zero.print = ".",comment=FALSE)
+```
+
+A plot of the residuals for this model can be found (here)[TODO].
